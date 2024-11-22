@@ -15,3 +15,14 @@ By leveraging IMDb’s and Movielens dataset, which includes a wealth of informa
 - **André Dollfus** - Scrum Master, Preprocessing
 - **André Farkas** - Analytics, Quality Assurance
 - **TImo Tran** - Data, Recommendation System
+
+## Installation
+1. Clone repository
+2. Create the Conda environment from the provided YAML file
+    ```
+    conda env create -f environment.yml
+    ```
+3. Activate the environment
+    ```
+    conda activate <env_name>
+    ```
