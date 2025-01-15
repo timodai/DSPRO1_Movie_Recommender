@@ -11,14 +11,14 @@ import os
 GENRE_LIST = [
     'Film-Noir', 'War', 'Crime', 'Documentary', 'Drama', 'Mystery', 'Animation',
     'Western', 'Musical', 'Romance', 'Thriller', 'Adventure', 'Fantasy', 
-    'Sci-Fi', 'Action', 'Children', 'Comedy', '(no genres listed)', 'Horror'
+    'Sci-Fi', 'Action', 'Children', 'Comedy', 'Horror'
 ]
 
 TRAINING_FEATURES = [
     'movieId', 'release_year', 'rating_count',
     'Film-Noir', 'War', 'Crime', 'Documentary', 'Drama', 'Mystery', 'Animation',
     'Western', 'Musical', 'Romance', 'Thriller', 'Adventure', 'Fantasy', 
-    'Sci-Fi', 'Action', 'Children', 'Comedy', '(no genres listed)', 'Horror'
+    'Sci-Fi', 'Action', 'Children', 'Comedy', 'Horror'
 ]
 
 # ----------------------------------------------------
@@ -78,8 +78,9 @@ def recommend_movies(seen_movies, preferred_genres, rating_preference, recency_p
     # Merge with the main dataset to include all required columns
     predict_data = predict_data.merge(movies, on='movieId', how='left')
 
+    predict_data = predict_data[predict_data['release_year'] >= 1960]
+
     # Normalize numeric features for prediction
-    predict_data['release_year'] = (predict_data['release_year'] - movies['release_year'].min()) / (movies['release_year'].max() - movies['release_year'].min())
     predict_data['rating_count'] = (predict_data['rating_count'] - movies['rating_count'].min()) / (movies['rating_count'].max() - movies['rating_count'].min())
 
     # Ensure all training features exist
@@ -121,7 +122,7 @@ def recommend_movies(seen_movies, preferred_genres, rating_preference, recency_p
     recommendations = predict_data.head(n_recommendations)
 
     # Keep only relevant details
-    return recommendations[['movieId', 'title', 'genres', 'release_year', 'rating_count']]
+    return recommendations[['movieId', 'title', 'genres', 'release_year']]
 
 # ----------------------------------------------------
 # Streamlit Interface
@@ -165,6 +166,14 @@ def generate_recommendations():
             recency_pref if recency_pref != 'Default' else None,
             count_pref if count_pref != 'Default' else None,
             n_recommendations
+        )
+        
+        recommendations['release_year'] = (
+            recommendations['release_year']
+            .astype(str)
+            .str.replace(",", "") 
+            .astype(float)
+            .astype(int) 
         )
         st.write("### Here are your recommendations:")
         st.table(recommendations)

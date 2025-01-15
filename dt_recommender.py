@@ -1,9 +1,8 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.metrics import mean_squared_error
-import numpy as np
-from tqdm import tqdm
+from sklearn.metrics import make_scorer, mean_squared_error
 import joblib
 
 # Load the MovieLens datasets
@@ -12,9 +11,9 @@ movies = pd.read_csv('movies.csv')
 ratings = pd.read_csv('ratings.csv')
 print("Datasets loaded successfully.")
 
-# Reduce the ratings dataset to 40% and only include relevant ratings
+# Reduce the ratings dataset to 30% and only include relevant ratings
 print("Reducing ratings dataset to 30%...")
-ratings = ratings.sample(frac=0.30, random_state=42)  # Take a 40% sample of the ratings dataset
+ratings = ratings.sample(frac=0.30, random_state=42)  # Take a 30% sample of the ratings dataset
 print("Filtering ratings >= 3.0...")
 ratings = ratings[ratings['rating'] >= 3.0]  # Include only ratings >= 3.0
 print(f"Reduced ratings dataset size: {ratings.shape[0]} rows.")
@@ -26,7 +25,7 @@ print("Datasets merged successfully.")
 
 # Use the predefined list of genres
 print("Using predefined list of genres for encoding...")
-genre_list = ['Film-Noir', 'War', 'Crime', 'Documentary', 'Drama', 'Mystery', 'Animation', 'Western', 'Musical', 'Romance', 'Thriller', 'Adventure', 'Fantasy', 'Sci-Fi', 'Action', 'Children', 'Comedy', '(no genres listed)', 'Horror']
+genre_list = ['Film-Noir', 'War', 'Crime', 'Documentary', 'Drama', 'Mystery', 'Animation', 'Western', 'Musical', 'Romance', 'Thriller', 'Adventure', 'Fantasy', 'Sci-Fi', 'Action', 'Children', 'Comedy', 'Horror']
 for genre in genre_list:
     merged_data[genre] = merged_data['genres'].str.contains(genre, na=False).astype(int)
 print(f"Genres encoded for: {genre_list}")
@@ -66,7 +65,14 @@ print("Data split complete.")
 
 # Train a Decision Tree Regressor model
 print("Training Decision Tree Regressor...")
-model = DecisionTreeRegressor(random_state=42)
+model = DecisionTreeRegressor(
+    max_depth=10,
+    min_samples_split=10,
+    min_samples_leaf=5,
+    max_features='sqrt',
+    criterion='squared_error',
+    random_state=42
+)
 model.fit(X_train, y_train)
 print("Model training complete.")
 
@@ -75,11 +81,20 @@ print("Saving the trained model to file...")
 joblib.dump(model, 'decision_tree_recommender.pkl')
 print("Model saved successfully as 'decision_tree_recommender.pkl'.")
 
-# Evaluate the model
+scores = cross_val_score(
+    model,
+    X, 
+    y,  
+    cv=5,  
+    scoring=make_scorer(mean_squared_error, greater_is_better=False) 
+)
+
+# Convert negative MSE to positive
+mse_scores = -scores
+average_mse = mse_scores.mean()
 print("Evaluating the model...")
-predictions = model.predict(X_test)
-mse = mean_squared_error(y_test, predictions)
-print(f"Mean Squared Error: {mse}")
+print("Cross-Validation MSE Scores:", mse_scores)
+print("Average MSE:", average_mse)
 
 # Function to recommend movies based on input movies and genres
 def recommend_movies_based_on_input(seen_movies, preferred_genres=None, n_recommendations=5):
@@ -99,9 +114,6 @@ def recommend_movies_based_on_input(seen_movies, preferred_genres=None, n_recomm
 
     # Extract and normalize release year for prediction data
     predict_data['release_year'] = predict_data['title'].str.extract(r'\((\d{4})\)').astype(float)
-    predict_data['release_year'].fillna(merged_data['release_year'].median(), inplace=True)
-    predict_data['release_year'] = (predict_data['release_year'] - merged_data['release_year'].min()) / (
-        merged_data['release_year'].max() - merged_data['release_year'].min())
 
     # Calculate and normalize the number of ratings for prediction data
     predict_data = predict_data.merge(ratings_count, on='movieId', how='left')
